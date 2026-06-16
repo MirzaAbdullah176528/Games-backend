@@ -1,0 +1,40 @@
+CREATE TABLE users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    email TEXT NOT NULL UNIQUE,
+
+    games INTEGER NOT NULL DEFAULT 0,
+
+    TTT_games INTEGER NOT NULL DEFAULT 0,
+    bingo_games INTEGER NOT NULL DEFAULT 0,
+    chess_games INTEGER NOT NULL DEFAULT 0,
+
+    lost INTEGER NOT NULL DEFAULT 0,
+    wins INTEGER NOT NULL DEFAULT 0,
+
+    TTT_lost INTEGER NOT NULL DEFAULT 0,
+    bingo_lost INTEGER NOT NULL DEFAULT 0,
+    chess_lost INTEGER NOT NULL DEFAULT 0,
+
+    TTT_win INTEGER NOT NULL DEFAULT 0,
+    bingo_win INTEGER NOT NULL DEFAULT 0,
+    chess_win INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE sessions (
+    session_number INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    user_id INTEGER NOT NULL,
+    ip TEXT NOT NULL,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    closed_at TEXT DEFAULT 'not closed yet',
+
+    games_played INTEGER NOT NULL DEFAULT 0,
+
+    TTT_games INTEGER NOT NULL DEFAULT 0,
+    chess_games INTEGER NOT NULL DEFAULT 0,
+    bingo_games INTEGER NOT NULL DEFAULT 0,
+
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
