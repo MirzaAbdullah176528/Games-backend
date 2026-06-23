@@ -51,6 +51,7 @@ export class GameRoom {
 
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url)
+    console.log('DO received:', url.pathname, request.headers.get('Upgrade'))
 
     if (url.pathname.endsWith('/internal/register-token')) {
       return this.handleRegisterToken(request)

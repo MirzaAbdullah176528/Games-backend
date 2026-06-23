@@ -10,18 +10,10 @@
 	
 	"migrations": [
 		{
-		"tag": "v2",
-		"deleted_classes": ["MyDurableObject"]
+			"tag": "v3",
+			"new_sqlite_classes": ["GameRoom"]
 		}
 	],
-	// "durable_objects": {
-	// 	"bindings": [
-	// 		{
-	// 			"class_name": "MyDurableObject",
-	// 			"name": "MY_DURABLE_OBJECT"
-	// 		}
-	// 	]
-	// },
 	"observability": {
 		"enabled": true
 	},
@@ -36,6 +28,13 @@
 			"database_id": "8f365d8a-1a0b-49eb-a813-4c76d62ddb47",
 			"remote": true
 		}
-	]
-
+	],
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "GAME_ROOM",
+				"class_name": "GameRoom"
+			}
+		]
+	}
 }

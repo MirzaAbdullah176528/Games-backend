@@ -20,12 +20,22 @@ ttt.post('/rooms', requireAuth, async (c) => {
     try {
         const username = c.get('user').sub
 
+        console.log('GAME_ROOM', c.env.GAME_ROOM)
+        console.log('JWT_SECRET', !!c.env.JWT_SECRET)
+        console.log('user', c.get('user'))
+
         const playerData = await c.env.game_db
             .prepare('SELECT id, elo FROM users WHERE name = ?')
             .bind(username)
             .first<{ id: number; elo: number }>()
 
         if (!playerData) return c.json({ error: 'User not found' }, 404)
+
+        if (!c.env.GAME_ROOM) {
+            return c.json({
+                error: 'GAME_ROOM binding missing'
+            }, 500)
+        }
 
         const roomId = crypto.randomUUID()
         const token = crypto.randomUUID()
@@ -100,6 +110,67 @@ ttt.post('/rooms/:id/join', requireAuth, async (c) => {
     }
 })
 
+ttt.post('/rooms/:id/reconnect', requireAuth, async (c) => {
+    try {
+        const username = c.get('user').sub
+        const roomId = c.req.param('id')
+
+        const playerData = await c.env.game_db
+            .prepare('SELECT id FROM users WHERE name = ?')
+            .bind(username)
+            .first<{ id: number }>()
+
+        if (!playerData) return c.json({ error: 'User not found' }, 404)
+
+        const stub = c.env.GAME_ROOM.get(c.env.GAME_ROOM.idFromName(roomId))
+
+        const statusRes = await stub.fetch('http://do/status')
+        const { gameState, players } = await statusRes.json<{
+            gameState: { status: string } | null
+            players: {
+                X: { userId: number; elo: number; connected: boolean } | null
+                O: { userId: number; elo: number; connected: boolean } | null
+            } | null
+        }>()
+
+        if (!gameState || !players) return c.json({ error: 'Room not found' }, 404)
+        if (gameState.status === 'finished') return c.json({ error: 'Game already finished' }, 410)
+
+        const symbol = players.X?.userId === playerData.id
+            ? 'X'
+            : players.O?.userId === playerData.id
+                ? 'O'
+                : null
+
+        if (!symbol) return c.json({ error: 'You are not a player in this room' }, 403)
+
+        const playerState = players[symbol]!
+
+        if (playerState.connected) return c.json({ error: 'Already connected' }, 409)
+
+        const token = crypto.randomUUID()
+
+        const res = await stub.fetch('http://do/internal/register-token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                token,
+                userId: playerData.id,
+                username,
+                elo: playerState.elo,
+                symbol,
+                roomId,
+            }),
+        })
+
+        if (!res.ok) return c.json({ error: 'Failed to issue reconnect token' }, 500)
+
+        return c.json({ roomId, token })
+    } catch (err) {
+        return c.json({ error: err instanceof Error ? err.message : String(err) }, 500)
+    }
+})
+
 ttt.get('/rooms/:id/ws', async (c) => {
     const roomId = c.req.param('id')
     const token = c.req.query('token')
@@ -110,9 +181,11 @@ ttt.get('/rooms/:id/ws', async (c) => {
         return c.json({ error: 'Expected WebSocket upgrade' }, 426)
     }
 
-    const stub = c.env.GAME_ROOM.get(c.env.GAME_ROOM.idFromName(roomId))
+    const stub = c.env.GAME_ROOM.get(c.env.GAME_ROOM.idFromName(roomId)) 
 
-    return stub.fetch(c.req.raw)
+    const wsUrl = new URL(c.req.raw.url)
+    wsUrl.pathname = '/ws'
+    return stub.fetch(new Request(wsUrl.toString(), c.req.raw))
 })
 
 ttt.get('/leaderboard', async (c) => {
